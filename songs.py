@@ -3,13 +3,17 @@ from spotipy import Spotify
 from spotipy.oauth2 import SpotifyClientCredentials
 from youtube_search import YoutubeSearch
 import threading
-import time
-from queue import Queue
+import os
+import yt_dlp
 
+
+current_directory = os.getcwd()
+folders_Idrectory = {"songs":os.path.join(current_directory, "songs")}
+os.makedirs(folders_Idrectory["songs"], exist_ok=True) #We use makedirs because this won't count for intermediate directories.
 
 #We need this to get info from the account.
-client_Id = '1920c832be0b4515b89bc7cf77e605d3'
-client_screte = '2df906b28bd44f6f9312540c38eb7dab'
+client_Id = 'your own'
+client_screte = 'your own'
 
 #The API credentials
 spot_credits = SpotifyClientCredentials(
@@ -27,14 +31,37 @@ playlist_id = playlist_url.split("/")[-1].split("?")[0]
 #This method gives us the songs form the playlist.
 tracks = sp.playlist_tracks(playlist_id)
 
-results_q = Queue()
+def download(url, song, artist):
+    try:
+        print(f"Starting download for {song} by {artist}...")
+        ydl_opts = {
+            'format': 'bestaudio/best',  # Best audio quality
+            'outtmpl': f"{folders_Idrectory['songs']}/{song} - {artist}.%(ext)s",  # Output filename pattern
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',  # Extract audio
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',  # MP3 quality
+            }],
+            'embedthumbnail': True,  # Embed album art
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=True)
+
+        # Get the downloaded file name
+        filename = ydl.prepare_filename(info_dict)
+        print(f"Downloaded: {filename}")        
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
+
 def youtube_url(song_name, artist_name):
     style = song_name + " - " + artist_name
     #to_dict because we need infividual elements.
     results = YoutubeSearch(style, max_results=1).to_dict()
     video_id = results[0]['url_suffix']
     url = f"https://www.youtube.com{video_id}"
-    results_q.put(f"{song_name} by {artist_name} -> {url}")
+    download(url, song_name, artist_name)
 
 threads = []
 for items in tracks['items']:
@@ -48,6 +75,3 @@ for items in tracks['items']:
 
 for thr in threads:
     thr.join()
-
-while not results_q.empty():
-    print(results_q.get())
