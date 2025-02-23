@@ -1,6 +1,11 @@
 import spotipy
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyClientCredentials
+from youtube_search import YoutubeSearch
+import threading
+import time
+
+
 
 #We need this to get info from the account.
 client_Id = 'your own'
@@ -22,7 +27,17 @@ playlist_id = playlist_url.split("/")[-1].split("?")[0]
 #This method gives us the songs form the playlist.
 tracks = sp.playlist_tracks(playlist_id)
 
+#Get url from youtube for each song.
+def youtube_url(song_name, artist_name):
+    style = song_name + " - " + artist_name
+    #to_dict because we need infividual elements.
+    results = YoutubeSearch(style, max_results=1).to_dict()
+    video_id = results[0]['url_suffix']
+    return f"https://www.youtube.com{video_id}"
+
 for items in tracks['items']:
     track = items['track']
     name = track['name']    
-    print(name)
+    artist = track['artists'][0]['name']
+    youtube = youtube_url(name, artist)  # Get YouTube URL
+    print(f"{name} by {artist} -> {youtube}")
